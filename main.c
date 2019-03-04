@@ -1,10 +1,9 @@
 #include <stdio.h>
-#include <stdlib.h>
 
 #include <vowpalwabbit/vwdll.h>
 
 int main() {
-	VW_HANDLE h = VW_InitializeA("--quiet --loss_function=logistic --confidence --save_resume --link=logistic");
+	VW_HANDLE h = VW_InitializeA("--loss_function=logistic --confidence --save_resume --link=logistic");
 
 	for (int i = 0; i < 1e3; i++) {
 		{
@@ -26,7 +25,21 @@ int main() {
 		VW_EXAMPLE goodExample = VW_ReadExampleA(h, "|Feature Good");
 		float prediction = VW_Learn(h, goodExample);
 		float confidence = VW_GetConfidence(goodExample);
-		printf("prediction = %f, confidence = %f\n", prediction, confidence);
+		printf("predict good = %f, confidence = %f\n", prediction, confidence);
+		VW_FinishExample(h, goodExample);
+	}
+	{
+		VW_EXAMPLE goodExample = VW_ReadExampleA(h, "|Feature Bad");
+		float prediction = VW_Learn(h, goodExample);
+		float confidence = VW_GetConfidence(goodExample);
+		printf("predict bad = %f, confidence = %f\n", prediction, confidence);
+		VW_FinishExample(h, goodExample);
+	}
+	{
+		VW_EXAMPLE goodExample = VW_ReadExampleA(h, "|Feature Unknown");
+		float prediction = VW_Learn(h, goodExample);
+		float confidence = VW_GetConfidence(goodExample);
+		printf("predict unknown = %f, confidence = %f\n", prediction, confidence);
 		VW_FinishExample(h, goodExample);
 	}
 
