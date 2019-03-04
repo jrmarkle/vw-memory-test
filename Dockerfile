@@ -47,6 +47,9 @@ WORKDIR /root
 
 COPY main.c /root/main.c
 
-RUN gcc main.c -o test
+RUN gcc \
+	main.c -o test \
+	-Wall -Werror \
+	-lvw_c_wrapper
 
-RUN valgrind ./test
+CMD ["valgrind", "--leak-check=full", "--show-leak-kinds=all", "./test"]
