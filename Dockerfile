@@ -23,7 +23,7 @@ RUN apt install -y -qq \
 	autoconf \
 	automake 
 
-RUN git clone --depth 1 --branch 8.3.2-s-1 git://github.com/jrmarkle/vowpal_wabbit.git /opt/vowpal_wabbit/
+RUN git clone --depth 1 --branch 8.5.0 git://github.com/JohnLangford/vowpal_wabbit.git /opt/vowpal_wabbit/
 
 WORKDIR /opt/vowpal_wabbit
 
