@@ -4,8 +4,8 @@ FROM ubuntu:16.04 AS vw
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt update
-RUN apt install -y -qq \
+RUN apt-get update
+RUN apt-get install -y \
 	apt-transport-https \
 	apt-utils \
 	ca-certificates \
@@ -21,11 +21,22 @@ RUN apt install -y -qq \
 	libtool \
 	m4 \
 	autoconf \
-	automake 
+	automake \
+	valgrind
 
-RUN git clone --depth 1 --branch 8.5.0 git://github.com/JohnLangford/vowpal_wabbit.git /opt/vowpal_wabbit/
+RUN git clone git://github.com/JohnLangford/vowpal_wabbit.git /opt/vowpal_wabbit/
+RUN git config --global user.email nobody
+RUN git config --global user.name nobody
 
 WORKDIR /opt/vowpal_wabbit
+
+RUN git checkout 276e0da6f0d21be617a854b0169d5e8ac0832225
+
+# jni.h build fix
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+# hash.h build fix
+RUN git cherry-pick 77733e0e46b0c37e3ea638b771249b1aff596bd2
 
 RUN libtoolize -f -c
 RUN aclocal -I ./acinclude.d -I /usr/share/aclocal
@@ -36,12 +47,8 @@ RUN autoconf
 RUN ./configure --with-boost-libdir=/usr/lib/x86_64-linux-gnu CXX=g++
 
 RUN make -j6
-RUN make test
 RUN make install
 RUN ldconfig
-
-RUN apt install -y -qq \
-	valgrind
 
 WORKDIR /root
 
