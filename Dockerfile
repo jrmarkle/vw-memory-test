@@ -30,7 +30,7 @@ RUN git config --global user.name nobody
 
 WORKDIR /opt/vowpal_wabbit
 
-RUN git checkout 276e0da6f0d21be617a854b0169d5e8ac0832225
+RUN git -c advice.detachedHead=false checkout 276e0da6
 
 # jni.h build fix
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
@@ -45,6 +45,10 @@ RUN touch README
 RUN automake -ac -Woverride
 RUN autoconf
 RUN ./configure --with-boost-libdir=/usr/lib/x86_64-linux-gnu CXX=g++
+
+# partially revert 276e0da
+COPY revert-276e0da6.patch .
+RUN patch -p1 < revert-276e0da6.patch
 
 RUN make -j6
 RUN make install

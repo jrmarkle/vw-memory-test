@@ -1,0 +1,322 @@
+diff --git a/vowpalwabbit/cb.cc b/vowpalwabbit/cb.cc
+index bedd2423..38fdbeaf 100644
+--- a/vowpalwabbit/cb.cc
++++ b/vowpalwabbit/cb.cc
+@@ -15,6 +15,16 @@ using namespace std;
+ 
+ namespace CB
+ {
++bool is_test_label(CB::label& ld)
++{
++  if (ld.costs.size() == 0)
++    return true;
++  for (size_t i=0; i<ld.costs.size(); i++)
++    if (FLT_MAX != ld.costs[i].cost && ld.costs[i].probability > 0.)
++      return false;
++  return true;
++}
++
+ char* bufread_label(CB::label* ld, char* c, io_buf& cache)
+ {
+   size_t num = *(size_t *)c;
+diff --git a/vowpalwabbit/cb.h b/vowpalwabbit/cb.h
+index b4db4651..376aa47d 100644
+--- a/vowpalwabbit/cb.h
++++ b/vowpalwabbit/cb.h
+@@ -17,7 +17,11 @@ struct cb_class
+   bool operator==(cb_class j) {return action == j.action;}
+ };
+ 
+-struct label { v_array<cb_class> costs;};
++struct label
++{ v_array<cb_class> costs;
++};
++
++bool is_test_label(CB::label& ld);
+ 
+ extern label_parser cb_label;//for learning
+ bool ec_is_example_header(example& ec);  // example headers look like "0:-1" or just "shared"
+diff --git a/vowpalwabbit/cb_algs.cc b/vowpalwabbit/cb_algs.cc
+index 87ce1159..b5223eb4 100644
+--- a/vowpalwabbit/cb_algs.cc
++++ b/vowpalwabbit/cb_algs.cc
+@@ -89,10 +89,10 @@ void output_example(vw& all, cb& data, example& ec, CB::label& ld)
+   float loss = 0.;
+ 
+   cb_to_cs& c = data.cbcs;
+-  if(!CB::cb_label.test_label(&ld))
++  if(!is_test_label(ld))
+     loss = get_unbiased_cost(c.known_cost, c.pred_scores, ec.pred.multiclass);
+ 
+-  all.sd->update(ec.test_only, !CB::cb_label.test_label(&ld), loss, 1.f, ec.num_features);
++  all.sd->update(ec.test_only, !is_test_label(ld), loss, 1.f, ec.num_features);
+ 
+   for (int sink : all.final_prediction_sink)
+     all.print(sink, (float)ec.pred.multiclass, 0, ec.tag);
+@@ -109,7 +109,7 @@ void output_example(vw& all, cb& data, example& ec, CB::label& ld)
+     all.print_text(all.raw_prediction, outputStringStream.str(), ec.tag);
+   }
+ 
+-  print_update(all, CB::cb_label.test_label(&ld), ec, nullptr, false);
++  print_update(all, is_test_label(ld), ec, nullptr, false);
+ }
+ 
+ void finish(cb& data)
+diff --git a/vowpalwabbit/cb_explore.cc b/vowpalwabbit/cb_explore.cc
+index 0f375648..a2a1ee12 100644
+--- a/vowpalwabbit/cb_explore.cc
++++ b/vowpalwabbit/cb_explore.cc
+@@ -312,7 +312,7 @@ void output_example(vw& all, cb_explore& data, example& ec, CB::label& ld)
+   for (int sink : all.final_prediction_sink)
+     all.print_text(sink, ss.str(), ec.tag);
+ 
+-  print_update_cb_explore(all, CB::cb_label.test_label(&ld), ec, sso);
++  print_update_cb_explore(all, is_test_label(ld), ec, sso);
+ }
+ 
+ void finish_example(vw& all, cb_explore& c, example& ec)
+diff --git a/vowpalwabbit/cost_sensitive.cc b/vowpalwabbit/cost_sensitive.cc
+index 8eb98657..e199a50a 100644
+--- a/vowpalwabbit/cost_sensitive.cc
++++ b/vowpalwabbit/cost_sensitive.cc
+@@ -29,6 +29,16 @@ void name_value(substring &s, v_array<substring>& name, float &v)
+   }
+ }
+ 
++bool is_test_label(label& ld)
++{
++  if (ld.costs.size() == 0)
++    return true;
++  for (unsigned int i=0; i<ld.costs.size(); i++)
++    if (FLT_MAX != ld.costs[i].x)
++      return false;
++  return true;
++}
++
+ char* bufread_label(label* ld, char* c, io_buf& cache)
+ {
+   size_t num = *(size_t *)c;
+@@ -255,27 +265,27 @@ void output_example(vw& all, example& ec)
+   label& ld = ec.l.cs;
+ 
+   float loss = 0.;
+-  if (!test_label(&ld))
+-    {
+-      //need to compute exact loss
+-      size_t pred = (size_t)ec.pred.multiclass;
+-
+-      float chosen_loss = FLT_MAX;
+-      float min = FLT_MAX;
+-      for (auto& cl : ld.costs)
+-        {
+-          if (cl.class_index == pred)
+-            chosen_loss = cl.x;
+-          if (cl.x < min)
+-            min = cl.x;
+-        }
+-      if (chosen_loss == FLT_MAX)
+-        cerr << "warning: csoaa predicted an invalid class. Are all multi-class labels in the {1..k} range?" << endl;
++  if (!is_test_label(ld))
++  {
++    //need to compute exact loss
++    size_t pred = (size_t)ec.pred.multiclass;
+ 
+-      loss = chosen_loss - min;
++    float chosen_loss = FLT_MAX;
++    float min = FLT_MAX;
++    for (auto& cl : ld.costs)
++    {
++      if (cl.class_index == pred)
++        chosen_loss = cl.x;
++      if (cl.x < min)
++        min = cl.x;
+     }
++    if (chosen_loss == FLT_MAX)
++      cerr << "warning: csoaa predicted an invalid class. Are all multi-class labels in the {1..k} range?" << endl;
++
++    loss = chosen_loss - min;
++  }
+ 
+-  all.sd->update(ec.test_only, !test_label(&ld), loss, 1.f, ec.num_features);
++  all.sd->update(ec.test_only, !is_test_label(ld), loss, 1.f, ec.num_features);
+ 
+   for (int sink : all.final_prediction_sink)
+     if (! all.sd->ldict)
+@@ -298,7 +308,7 @@ void output_example(vw& all, example& ec)
+     all.print_text(all.raw_prediction, outputStringStream.str(), ec.tag);
+   }
+ 
+-  print_update(all, test_label(&ec.l.cs), ec, nullptr, false, ec.pred.multiclass);
++  print_update(all, is_test_label(ec.l.cs), ec, nullptr, false, ec.pred.multiclass);
+ }
+ 
+ bool example_is_test(example& ec)
+diff --git a/vowpalwabbit/cost_sensitive.h b/vowpalwabbit/cost_sensitive.h
+index ee301e71..3cfa416c 100644
+--- a/vowpalwabbit/cost_sensitive.h
++++ b/vowpalwabbit/cost_sensitive.h
+@@ -31,6 +31,8 @@ struct label
+ void output_example(vw& all, example& ec);
+ extern label_parser cs_label;
+ 
++bool is_test_label(label& ld);
++
+ void print_update(vw& all, bool is_test, example& ec, const v_array<example*> *ec_seq, bool multilabel, uint32_t prediction);
+ bool ec_is_example_header(example& ec);  // example headers look like "0:-1" or just "shared"
+ }
+diff --git a/vowpalwabbit/gen_cs_example.cc b/vowpalwabbit/gen_cs_example.cc
+index 56e0f952..4660d8d6 100644
+--- a/vowpalwabbit/gen_cs_example.cc
++++ b/vowpalwabbit/gen_cs_example.cc
+@@ -115,7 +115,7 @@ void gen_cs_example_ips(cb_to_cs& c, CB::label& ld, COST_SENSITIVE::label& cs_ld
+   //this implements the inverse propensity score method, where cost are importance weighted by the probability of the chosen action
+   //generate cost-sensitive example
+   cs_ld.costs.erase();
+-  if (ld.costs.size() == 1 || ld.costs.size() == 0)   //this is a typical example where we can perform all actions
++  if (ld.costs.size() == 1 && !is_test_label(ld))   //this is a typical example where we can perform all actions
+   {
+     //in this case generate cost-sensitive example with all actions
+     for (uint32_t i = 1; i <= c.num_actions; i++)
+diff --git a/vowpalwabbit/gen_cs_example.h b/vowpalwabbit/gen_cs_example.h
+index e73411b6..f929077a 100644
+--- a/vowpalwabbit/gen_cs_example.h
++++ b/vowpalwabbit/gen_cs_example.h
+@@ -56,7 +56,7 @@ void gen_cs_example_dm(cb_to_cs& c, example& ec, COST_SENSITIVE::label& cs_ld)
+   cs_ld.costs.erase();
+   c.pred_scores.costs.erase();
+ 
+-  if (ld.costs.size() == 1 || ld.costs.size() == 0)   //this is a typical example where we can perform all actions
++  if ((ld.costs.size() == 1 && !is_test_label(ld)) || ld.costs.size() == 0)   //this is a typical example where we can perform all actions
+   { //in this case generate cost-sensitive example with all actions
+     for (uint32_t i = 1; i <= c.num_actions; i++)
+     { COST_SENSITIVE::wclass wc = {0., i, 0., 0.};
+@@ -138,10 +138,11 @@ void gen_cs_example_dr(cb_to_cs& c, example& ec, CB::label& ld, COST_SENSITIVE::
+       COST_SENSITIVE::wclass c = { FLT_MAX, i, 0., 0. };
+       cs_ld.costs.push_back(c);
+     }
+-  else if (ld.costs.size() == 1 || ld.costs.size() == 0) //this is a typical example where we can perform all actions
++  else if (ld.costs.size() == 1 && !is_test_label(ld)) //this is a typical example where we can perform all actions
+     //in this case generate cost-sensitive example with all actions
+     for (uint32_t i = 1; i <= c.num_actions; i++)
+-      gen_cs_label<is_learn>(c, ec, cs_ld, i);
++    { gen_cs_label<is_learn>(c, ec, cs_ld, i);
++    }
+   else  //this is an example where we can only perform a subset of the actions
+     //in this case generate cost-sensitive example with only allowed actions
+     for (auto& cl : ld.costs)
+diff --git a/vowpalwabbit/multiclass.h b/vowpalwabbit/multiclass.h
+index b22d5729..d72fd618 100644
+--- a/vowpalwabbit/multiclass.h
++++ b/vowpalwabbit/multiclass.h
+@@ -24,4 +24,7 @@ void print_update_with_score(vw& all, example &ec, uint32_t prediction);
+ void finish_example(vw& all, example& ec);
+ 
+ template <class T> void finish_example(vw& all, T&, example& ec) { finish_example(all, ec); }
++
++inline bool label_is_test(label_t* ld)
++{ return ld->label == (uint32_t)-1; }
+ }
+diff --git a/vowpalwabbit/multilabel.cc b/vowpalwabbit/multilabel.cc
+index 1f53769b..2f57f6e9 100644
+--- a/vowpalwabbit/multilabel.cc
++++ b/vowpalwabbit/multilabel.cc
+@@ -6,6 +6,14 @@ using namespace std;
+ 
+ namespace MULTILABEL
+ {
++bool is_test_label(labels& ld)
++{
++  if (ld.label_v.size() == 0)
++    return true;
++  else
++    return false;
++}
++
+ char* bufread_label(labels* ld, char* c, io_buf& cache)
+ {
+   size_t num = *(size_t *)c;
+@@ -154,7 +162,7 @@ void output_example(vw& all, example& ec)
+   labels& ld = ec.l.multilabels;
+ 
+   float loss = 0.;
+-  if (!test_label(&ld))
++  if (!is_test_label(ld))
+   {
+     //need to compute exact loss
+     labels preds = ec.pred.multilabels;
+@@ -182,7 +190,7 @@ void output_example(vw& all, example& ec)
+     loss += preds.label_v.size() - preds_index;
+   }
+ 
+-  all.sd->update(ec.test_only, !test_label(&ld), loss, 1.f, ec.num_features);
++  all.sd->update(ec.test_only, !is_test_label(ld), loss, 1.f, ec.num_features);
+ 
+   for (int sink : all.final_prediction_sink)
+     if (sink >= 0)
+@@ -199,6 +207,6 @@ void output_example(vw& all, example& ec)
+       all.print_text(sink, ss.str(), ec.tag);
+     }
+ 
+-  print_update(all, test_label(&ec.l.multilabels), ec);
++  print_update(all, is_test_label(ec.l.multilabels), ec);
+ }
+ }
+diff --git a/vowpalwabbit/multilabel.h b/vowpalwabbit/multilabel.h
+index 499de8b2..0b9cf63a 100644
+--- a/vowpalwabbit/multilabel.h
++++ b/vowpalwabbit/multilabel.h
+@@ -11,10 +11,13 @@ struct vw;
+ 
+ namespace MULTILABEL
+ {
+-  struct labels { v_array<uint32_t> label_v;};
++struct labels
++{ v_array<uint32_t> label_v;
++};
+ 
+-  void output_example(vw& all, example& ec);
+-  extern label_parser multilabel;
++void output_example(vw& all, example& ec);
++extern label_parser multilabel;
+ 
+-  void print_update(vw& all, bool is_test, example& ec, const v_array<example*> *ec_seq);
++
++void print_update(vw& all, bool is_test, example& ec, const v_array<example*> *ec_seq);
+ }
+diff --git a/vowpalwabbit/oaa.cc b/vowpalwabbit/oaa.cc
+index e18f3a26..1adf7f4e 100644
+--- a/vowpalwabbit/oaa.cc
++++ b/vowpalwabbit/oaa.cc
+@@ -62,7 +62,6 @@ void learn_randomized(oaa& o, LEARNER::base_learner& base, example& ec)
+ template <bool is_learn, bool print_all, bool scores, bool probabilities>
+ void predict_or_learn(oaa& o, LEARNER::base_learner& base, example& ec)
+ {
+-  cout << "is_learn = " << is_learn << endl;
+   MULTICLASS::label_t mc_label_data = ec.l.multi;
+   if (mc_label_data.label == 0 || (mc_label_data.label > o.k && mc_label_data.label != (uint32_t)-1))
+     cout << "label " << mc_label_data.label << " is not in {1,"<< o.k << "} This won't work right." << endl;
+diff --git a/vowpalwabbit/parser.cc b/vowpalwabbit/parser.cc
+index 0530f986..49234dca 100644
+--- a/vowpalwabbit/parser.cc
++++ b/vowpalwabbit/parser.cc
+@@ -814,7 +814,6 @@ void setup_example(vw& all, example* ae)
+     all.p->in_pass_counter++;
+ 
+   ae->test_only = is_test_only(all.p->in_pass_counter, all.holdout_period, all.holdout_after, all.holdout_set_off, all.p->emptylines_separate_examples ? (all.holdout_period-1) : 0);
+-  ae->test_only |= all.p->lp.test_label(&ae->l);
+ 
+   if (all.p->emptylines_separate_examples && example_is_newline(*ae))
+     all.p->in_pass_counter++;
+diff --git a/vowpalwabbit/search.cc b/vowpalwabbit/search.cc
+index 374c5f09..2e45ffd7 100644
+--- a/vowpalwabbit/search.cc
++++ b/vowpalwabbit/search.cc
+@@ -2230,7 +2230,7 @@ void end_examples(search& sch)
+ 
+ bool mc_label_is_test(polylabel& lab)
+ {
+-  return MC::mc_label.test_label(&lab.multi);
++  return MC::label_is_test(&lab.multi);
+ }
+ 
+ void search_initialize(vw* all, search& sch)
