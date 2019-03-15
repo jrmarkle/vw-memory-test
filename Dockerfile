@@ -24,19 +24,16 @@ RUN apt-get install -y \
 	automake \
 	valgrind
 
-RUN git clone git://github.com/JohnLangford/vowpal_wabbit.git /opt/vowpal_wabbit/
-RUN git config --global user.email nobody
-RUN git config --global user.name nobody
+RUN git -c advice.detachedHead=false clone --depth 1 --branch 8.6.1 git://github.com/JohnLangford/vowpal_wabbit.git /opt/vowpal_wabbit/
 
 WORKDIR /opt/vowpal_wabbit
-
-RUN git -c advice.detachedHead=false checkout 276e0da6
 
 # jni.h build fix
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
-# hash.h build fix
-RUN git cherry-pick 77733e0e46b0c37e3ea638b771249b1aff596bd2
+# revert a single line change from 276e0da
+COPY revert-276e0da6.patch .
+RUN patch -p1 < revert-276e0da6.patch
 
 RUN libtoolize -f -c
 RUN aclocal -I ./acinclude.d -I /usr/share/aclocal
@@ -46,11 +43,8 @@ RUN automake -ac -Woverride
 RUN autoconf
 RUN ./configure --with-boost-libdir=/usr/lib/x86_64-linux-gnu CXX=g++
 
-# partially revert 276e0da
-COPY revert-276e0da6.patch .
-RUN patch -p1 < revert-276e0da6.patch
-
 RUN make -j6
+#RUN make test
 RUN make install
 RUN ldconfig
 
