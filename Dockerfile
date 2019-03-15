@@ -32,8 +32,8 @@ WORKDIR /opt/vowpal_wabbit
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
 # revert a single line change from 276e0da
-COPY revert-276e0da6.patch .
-RUN patch -p1 < revert-276e0da6.patch
+#COPY revert-276e0da6.patch .
+#RUN patch -p1 < revert-276e0da6.patch
 
 RUN libtoolize -f -c
 RUN aclocal -I ./acinclude.d -I /usr/share/aclocal
@@ -44,7 +44,7 @@ RUN autoconf
 RUN ./configure --with-boost-libdir=/usr/lib/x86_64-linux-gnu CXX=g++
 
 RUN make -j6
-#RUN make test
+RUN make test
 RUN make install
 RUN ldconfig
 

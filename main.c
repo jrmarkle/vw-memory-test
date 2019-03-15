@@ -7,15 +7,13 @@ int main() {
 
 	for (int i = 0; i < 1e3; i++) {
 		{
-			VW_EXAMPLE goodExample = VW_ReadExampleA(h, "|Feature Good");
-			VW_AddLabel(goodExample, 1, 1, 0);
+			VW_EXAMPLE goodExample = VW_ReadExampleA(h, "1 |Feature Good");
 			VW_Learn(h, goodExample);
 			VW_FinishExample(h, goodExample);
 		}
 
 		{
-			VW_EXAMPLE badExample = VW_ReadExampleA(h, "|Feature Bad");
-			VW_AddLabel(badExample, -1, 1, 0);
+			VW_EXAMPLE badExample = VW_ReadExampleA(h, "-1 |Feature Bad");
 			VW_Learn(h, badExample);
 			VW_FinishExample(h, badExample);
 		}
