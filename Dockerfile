@@ -1,6 +1,6 @@
 # Note: use https://www.fromlatest.io/ for linting Dockerfiles
 
-FROM ubuntu:16.04 AS vw
+FROM ubuntu:18.04 AS vw
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -14,6 +14,9 @@ RUN apt-get install -y \
 	software-properties-common \
 	build-essential \
 	libboost-program-options-dev \
+	libboost-system-dev \
+	libboost-test-dev \
+	libboost-thread-dev \
 	zlib1g-dev \
 	netcat \
 	python \
@@ -22,29 +25,17 @@ RUN apt-get install -y \
 	m4 \
 	autoconf \
 	automake \
-	valgrind
+	valgrind \
+	pkg-config \
+	cmake \
+	help2man
 
-RUN git -c advice.detachedHead=false clone --depth 1 --branch 8.6.1 git://github.com/JohnLangford/vowpal_wabbit.git /opt/vowpal_wabbit/
-
+RUN git clone git://github.com/jrmarkle/vowpal_wabbit.git /opt/vowpal_wabbit/
 WORKDIR /opt/vowpal_wabbit
 
-# jni.h build fix
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+RUN git -c advice.detachedHead=false checkout 0a9122a4ab7effe1fe4bcf04da6192ee4e63bc45
 
-# revert a single line change from 276e0da
-#COPY revert-276e0da6.patch .
-#RUN patch -p1 < revert-276e0da6.patch
-
-RUN libtoolize -f -c
-RUN aclocal -I ./acinclude.d -I /usr/share/aclocal
-RUN autoheader
-RUN touch README
-RUN automake -ac -Woverride
-RUN autoconf
-RUN ./configure --with-boost-libdir=/usr/lib/x86_64-linux-gnu CXX=g++
-
-RUN make -j6
-RUN make test
+RUN make
 RUN make install
 RUN ldconfig
 
@@ -52,9 +43,10 @@ WORKDIR /root
 
 COPY main.c /root/main.c
 
-RUN gcc \
-	main.c -o test \
-	-Wall -Werror \
-	-lvw_c_wrapper
+RUN cat /usr/local/lib/pkgconfig/libvw_c_wrapper.pc
+RUN cat /usr/local/lib/pkgconfig/libvw.pc
+RUN pkg-config --libs libvw_c_wrapper
+RUN gcc -c main.c $(pkg-config --cflags libvw_c_wrapper)
+RUN g++ main.o -o test $(pkg-config --libs libvw_c_wrapper)
 
 CMD ["valgrind", "--leak-check=full", "--show-leak-kinds=all", "./test"]
