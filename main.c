@@ -7,7 +7,7 @@ int main() {
 	char* modelBuf;
 	size_t modelBufLen;
 
-	const char* commandLine = "--quiet --loss_function=logistic --link=logistic --confidence --confidence_after_training --save_resume";
+	const char* commandLine = "--quiet --loss_function=logistic --link=logistic --confidence --save_resume";
 
 	{
 		VW_HANDLE h = VW_InitializeA(commandLine);
