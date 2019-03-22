@@ -33,22 +33,12 @@ RUN apt-get install -y \
 RUN git clone git://github.com/VowpalWabbit/vowpal_wabbit.git /opt/vowpal_wabbit/
 WORKDIR /opt/vowpal_wabbit
 
-RUN git -c advice.detachedHead=false checkout e833199eb89a752524159a4a1f7145d4357e63e8
-
-RUN libtoolize -f -c
-RUN aclocal -I ./acinclude.d -I /usr/share/aclocal
-RUN autoheader
-RUN touch README
-RUN automake -ac -Woverride
-RUN autoconf
-RUN ./configure --with-boost-libdir=/usr/lib/x86_64-linux-gnu CXX=g++
-
-RUN make -j4
+RUN git -c advice.detachedHead=false checkout edfc0ba8e0c792c65e7732a8cbe03b0de4e7d501
 
 COPY revert-e833199e.patch .
 RUN patch -p1 < revert-e833199e.patch
 
-RUN make -j4
+RUN make
 RUN make install
 RUN ldconfig
 
