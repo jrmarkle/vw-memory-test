@@ -7,8 +7,10 @@ int main() {
 	char* modelBuf;
 	size_t modelBufLen;
 
+	const char* commandLine = "--loss_function=logistic --link=logistic --confidence --confidence_after_training --save_resume";
+
 	{
-		VW_HANDLE h = VW_InitializeA("--loss_function=logistic --link=logistic --confidence --save_resume");
+		VW_HANDLE h = VW_InitializeA(commandLine);
 
 		for (int i = 0; i < 1e3; i++) {
 			{
@@ -53,7 +55,7 @@ int main() {
 	printf("-------\n");
 
 	{
-		VW_HANDLE h = VW_InitializeWithModel("--loss_function=logistic --link=logistic --confidence --save_resume", modelBuf, modelBufLen);
+		VW_HANDLE h = VW_InitializeWithModel(commandLine, modelBuf, modelBufLen);
 
 		{
 			VW_EXAMPLE goodExample = VW_ReadExampleA(h, "|Feature Good");
