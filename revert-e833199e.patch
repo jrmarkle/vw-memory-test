@@ -1,50 +1,8 @@
 diff --git a/vowpalwabbit/gd.cc b/vowpalwabbit/gd.cc
-index 623d6869..9b81d115 100644
+index 623d6869..b3de60b7 100644
 --- a/vowpalwabbit/gd.cc
 +++ b/vowpalwabbit/gd.cc
-@@ -108,17 +108,17 @@ inline void update_feature(float& update, float x, float& fw)
- 
- //this deals with few nonzero features vs. all nonzero features issues.
-   template<bool sqrt_rate, size_t adaptive, size_t normalized>
--  float average_update(float total_weight, float normalized_sum_norm_x, float neg_norm_power)
-+  float average_update(gd& g)
-   { if (normalized)
-       { if (sqrt_rate)
--          { float avg_norm = total_weight / normalized_sum_norm_x;
-+          { float avg_norm = (float) g.total_weight / (float) g.all->normalized_sum_norm_x;
-             if (adaptive)
-               return sqrt(avg_norm);
-             else
-               return avg_norm;
-           }
-         else
--          return powf( normalized_sum_norm_x / total_weight, neg_norm_power);
-+          return powf( (float) g.all->normalized_sum_norm_x / (float) g.total_weight, g.neg_norm_power);
-       }
-     return 1.f;
-   }
-@@ -442,18 +442,11 @@ inline void pred_per_update_feature(norm_data& nd, float x, float& fw)
-     }
-     if (x2 > x2_max)
-       THROW("your features have too much magnitude");
--    if (stateless) // we must not modify the parameter state so introduce a shadow version.
--      {
--        nd.extra_state[0]=w[0];
--        nd.extra_state[adaptive]=w[adaptive];
--        nd.extra_state[normalized]=w[normalized];
--        w = nd.extra_state;
--      }
--    if(adaptive)
-+    if(adaptive && !stateless)
-       w[adaptive] += nd.grad_squared * x2;
-     if(normalized)
-     { float x_abs = fabsf(x);
--      if( x_abs > w[normalized])  // new scale discovered
-+      if( x_abs > w[normalized] && !stateless)  // new scale discovered
-       { if( w[normalized] > 0.)  //If the normalizer is > 0 then rescale the weight so it's as if the new scale was the old scale.
-         { if (sqrt_rate)
-           { float rescale = w[normalized]/x_abs;
-@@ -468,7 +461,7 @@ inline void pred_per_update_feature(norm_data& nd, float x, float& fw)
+@@ -468,7 +468,7 @@ inline void pred_per_update_feature(norm_data& nd, float x, float& fw)
        }
        nd.norm_x += x2 / (w[normalized] * w[normalized]);
      }
@@ -53,19 +11,3 @@ index 623d6869..9b81d115 100644
      nd.pred_per_update += x2 * w[spare];
    }
  }
-@@ -488,14 +481,8 @@ float get_pred_per_update(gd& g, example& ec)
-   { if(!stateless)
-     { g.all->normalized_sum_norm_x += ec.weight * nd.norm_x;
-       g.total_weight += ec.weight;
--      g.update_multiplier = average_update<sqrt_rate, adaptive, normalized>(g.total_weight, g.all->normalized_sum_norm_x, g.neg_norm_power);
-     }
--    else
--      {
--        double nsnx = g.all->normalized_sum_norm_x + ec.weight * nd.norm_x;
--        double tw = g.total_weight + ec.weight;
--        g.update_multiplier = average_update<sqrt_rate, adaptive, normalized>(tw, nsnx, g.neg_norm_power);
--      }
-+    g.update_multiplier = average_update<sqrt_rate, adaptive, normalized>(g);
-     nd.pred_per_update *= g.update_multiplier;
-   }
-   return nd.pred_per_update;
