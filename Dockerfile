@@ -43,10 +43,7 @@ WORKDIR /root
 
 COPY main.c /root/main.c
 
-RUN cat /usr/local/lib/pkgconfig/libvw_c_wrapper.pc
-RUN cat /usr/local/lib/pkgconfig/libvw.pc
-RUN pkg-config --libs libvw_c_wrapper
 RUN gcc -c main.c $(pkg-config --cflags libvw_c_wrapper)
 RUN g++ main.o -o test $(pkg-config --libs libvw_c_wrapper)
 
-CMD ["valgrind", "--leak-check=full", "--show-leak-kinds=all", "./test"]
+CMD ["./test"]
