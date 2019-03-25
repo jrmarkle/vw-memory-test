@@ -1,6 +1,6 @@
 # Note: use https://www.fromlatest.io/ for linting Dockerfiles
 
-FROM ubuntu:18.04 AS vw
+FROM ubuntu:16.04 AS vw
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -38,15 +38,19 @@ RUN git -c advice.detachedHead=false checkout edfc0ba8e0c792c65e7732a8cbe03b0de4
 COPY revert-e833199e.patch .
 RUN patch -p1 < revert-e833199e.patch
 
-RUN make
-RUN make install
+RUN mkdir build
+WORKDIR /opt/vowpal_wabbit/build
+RUN cmake .. -DSTATIC_LINK_VW=On -DCMAKE_BUILD_TYPE=Release
+RUN make -j$(cat nprocs.txt) install
 RUN ldconfig
 
 WORKDIR /root
 
 COPY main.c /root/main.c
 
-RUN gcc -c main.c $(pkg-config --cflags libvw_c_wrapper)
-RUN g++ main.o -o test $(pkg-config --libs libvw_c_wrapper)
+RUN gcc -c main.c -I/usr/local/include/vowpalwabbit
+RUN g++ -static main.o -o test -lvw_c_wrapper -lvw -lallreduce -pthread -lboost_program_options -lz
+
+RUN file test
 
 CMD ["./test"]
