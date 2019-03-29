@@ -1,0 +1,19 @@
+diff --git a/vowpalwabbit/vwdll.cpp b/vowpalwabbit/vwdll.cpp
+index 2bb0056..24ff947 100644
+--- a/vowpalwabbit/vwdll.cpp
++++ b/vowpalwabbit/vwdll.cpp
+@@ -315,6 +315,14 @@ public:
+         return nbytes;
+     }
+ 
++    virtual bool close_file() {
++       if (files.size() > 0) {
++            files.pop();
++            return true;
++        }
++        return false;
++    }
++
+     char* GetDataPointer() {
+         return data.data();
+     }
