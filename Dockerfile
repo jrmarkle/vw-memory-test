@@ -16,11 +16,9 @@ RUN apt-get update && apt-get install -y \
 	valgrind \
 	zlib1g-dev
 
-RUN git clone git://github.com/VowpalWabbit/vowpal_wabbit.git /opt/vowpal_wabbit/
 WORKDIR /opt/vowpal_wabbit
-
-RUN git -c advice.detachedHead=false checkout 2cbe61b26a0ad0b563f217dacc0fbddc9a3967fc
-RUN mkdir build
+RUN git clone git://github.com/VowpalWabbit/vowpal_wabbit.git . && \
+	git -c advice.detachedHead=false checkout 170bba585b012db74e7e6949692141bade933c9e
 WORKDIR /opt/vowpal_wabbit/build
 RUN cmake .. -DSTATIC_LINK_VW=On -DBUILD_TESTS=Off -DCMAKE_BUILD_TYPE=Release
 RUN make -j$(cat nprocs.txt) install
