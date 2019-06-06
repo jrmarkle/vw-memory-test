@@ -4,8 +4,8 @@ FROM ubuntu:16.04 AS vw
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
+	cmake \
 	git \
 	build-essential \
 	libboost-program-options-dev \
@@ -14,21 +14,15 @@ RUN apt-get install -y \
 	libboost-thread-dev \
 	zlib1g-dev \
 	valgrind \
-	cmake
+	zlib1g-dev
 
 RUN git clone git://github.com/VowpalWabbit/vowpal_wabbit.git /opt/vowpal_wabbit/
 WORKDIR /opt/vowpal_wabbit
 
-RUN git -c advice.detachedHead=false checkout edfc0ba8e0c792c65e7732a8cbe03b0de4e7d501
-
-COPY revert-e833199e.patch .
-RUN patch -p1 < revert-e833199e.patch
-COPY close_file_fix.patch .
-RUN patch -p1 < close_file_fix.patch
-
+RUN git -c advice.detachedHead=false checkout 2cbe61b26a0ad0b563f217dacc0fbddc9a3967fc
 RUN mkdir build
 WORKDIR /opt/vowpal_wabbit/build
-RUN cmake ..
+RUN cmake .. -DSTATIC_LINK_VW=On -DBUILD_TESTS=Off -DCMAKE_BUILD_TYPE=Release
 RUN make -j$(cat nprocs.txt) install
 RUN ldconfig
 
